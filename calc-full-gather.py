@@ -103,11 +103,16 @@ def main():
     orig_query_abunds = query_mh.hashes
     sum_abunds = sum(orig_query_abunds.values())
 
+    # initialize output
+    csv_writer = sourmash.sourmash_args.FileOutputCSV(args.output)
+    outfp = csv_writer.open()
+    result_writer = None
+
     # iterate over results, row by row
     screen_width = 80
     is_abundance = True
     sum_f_uniq_found = 0.
-    found = []
+    found = False
     for rank, mf_row in enumerate(ordered_rows):
         best_match = zipfile_load_ss_from_row(db, mf_row)
 
@@ -134,7 +139,7 @@ def main():
 
         sum_f_uniq_found += result.f_unique_to_query
 
-        if not len(found):                # first result? print header.
+        if not found:                # first result? print header.
             if is_abundance:
                 print_results("")
                 print_results("overlap     p_query p_match avg_abund")
@@ -143,6 +148,8 @@ def main():
                 print_results("")
                 print_results("overlap     p_query p_match")
                 print_results("---------   ------- -------")
+
+            found = True
 
 
         # print interim result & save in `found` list for later use
@@ -160,24 +167,20 @@ def main():
             print_results('{:9}   {:>7} {:>7}    {}',
                       format_bp(result.intersect_bp), pct_query, pct_genome,
                       name)
-        found.append(result)
+
+        # write out
+        if result_writer is None:
+            result_writer = result.init_dictwriter(outfp)
+        result.write(result_writer)
         
     if found:
+        # use last result!
         if is_abundance and result:
             p_covered = result.sum_weighted_found / result.total_weighted_hashes
             p_covered *= 100
             print_results(f'the recovered matches hit {p_covered:.1f}% of the abundance-weighted query.')
 
         print_results(f'the recovered matches hit {sum_f_uniq_found*100:.1f}% of the query k-mers (unweighted).')
-
-    # save CSV?
-    if (found and args.output):
-        with sourmash.sourmash_args.FileOutputCSV(args.output) as fp:
-            w = None
-            for result in found:
-                if w is None:
-                    w = result.init_dictwriter(fp)
-                result.write(w)
 
 
 if __name__ == '__main__':
