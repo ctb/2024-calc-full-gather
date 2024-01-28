@@ -1,10 +1,13 @@
 #! /usr/bin/env python
+# copied from https://github.com/ctb/2024-calc-full-gather commit a09215ec5b70
+# for now.
 """
 
 CTB TODO:
 - deal with abundance stuff
 - deal with threshold bp
 - support the usual gather output? matches, matched hashes, etc.
+- multiple databases...
 """
 import argparse
 import sys
@@ -12,7 +15,7 @@ import sourmash
 import csv
 
 from sourmash.search import GatherResult, format_bp
-from sourmash.logging import print_results
+from sourmash.logging import print_results, set_quiet
 
 
 def get_ident(name):
@@ -45,7 +48,13 @@ def main():
                    help='threshold for matches')
     p.add_argument('-o', '--output', default=None,
                    help='CSV output')
+    p.add_argument('-q', '--quiet', default=False, action='store_true',
+                   help='suppress output')
+    p.add_argument('--estimate-ani-ci', default=False, action='store_true',
+                   help='estimate ANI confidence intervals (default: False)')
     args = p.parse_args()
+
+    set_quiet(args.quiet)
 
     db = sourmash.load_file_as_index(args.database)
 
@@ -90,9 +99,9 @@ def main():
     print(f"ksize={ksize}, scaled={scaled}")
 
     query_ss = sourmash.load_file_as_index(args.query)
-    query_ss.select(ksize=ksize, scaled=scaled)
+    query_ss = query_ss.select(ksize=ksize, scaled=scaled)
     query_ss = list(query_ss.signatures())
-    assert len(query_ss) == 1
+    assert len(query_ss) == 1, query_ss
     query_ss = query_ss[0]
     assert query_ss.minhash.track_abundance, \
         "Query signatures must have abundance (for now)."
@@ -131,7 +140,7 @@ def main():
                               threshold_bp=args.threshold_bp,
                               orig_query_len=len(orig_query_mh),
                               orig_query_abunds=orig_query_abunds,
-                              estimate_ani_ci=True,
+                              estimate_ani_ci=args.estimate_ani_ci,
                               sum_weighted_found=sum_weighted_found,
                               total_weighted_hashes=sum_abunds)
 
@@ -171,7 +180,10 @@ def main():
         # write out
         if result_writer is None:
             result_writer = result.init_dictwriter(outfp)
+        print('XXX writing')
         result.write(result_writer)
+
+    csv_writer.close()
         
     if found:
         # use last result!
