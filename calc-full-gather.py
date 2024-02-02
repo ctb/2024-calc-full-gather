@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# copied from https://github.com/ctb/2024-calc-full-gather commit a09215ec5b70
+# copied from https://github.com/ctb/2024-calc-full-gather commit 87d7d9ec8c67c
 # for now.
 """
 
@@ -180,8 +180,10 @@ def main():
         # write out
         if result_writer is None:
             result_writer = result.init_dictwriter(outfp)
-        print('XXX writing')
         result.write(result_writer)
+
+        outfp.flush()
+        sys.stdout.flush()
 
     csv_writer.close()
         
